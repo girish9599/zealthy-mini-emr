@@ -10,24 +10,29 @@ type Appointment = {
   repeat: string | null;
 };
 
-export default function AllAppointmentsPage() {
+export default function PortalAppointmentsPage() {
   const router = useRouter();
-  const [items, setItems] = useState<Appointment[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
   useEffect(() => {
     (async () => {
+      setErr("");
       try {
         const res = await fetch("/api/patient/appointments", {
           cache: "no-store",
         });
-        if (res.status === 401) return router.push("/login");
+        if (res.status === 401) {
+          router.push("/login");
+          return;
+        }
         if (!res.ok) throw new Error("Failed to load appointments");
         const data: Appointment[] = await res.json();
-        setItems(data);
-      } catch (e: any) {
-        setErr(e?.message ?? "Unexpected error");
+        setAppointments(data);
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unexpected error";
+        setErr(message);
       } finally {
         setLoading(false);
       }
@@ -38,14 +43,10 @@ export default function AllAppointmentsPage() {
   if (err) return <p className="p-4 text-red-600">{err}</p>;
 
   return (
-    <main className="p-6 space-y-4">
-      <button className="underline" onClick={() => router.push("/portal")}>
-        ← Back to portal
-      </button>
-      <h1 className="text-2xl font-bold">
-        All Upcoming Appointments (next 3 months)
+    <main className="p-6">
+      <h1 className="text-2xl font-bold mb-4">
+        All appointments (next 3 months)
       </h1>
-
       <table className="border-collapse border w-full">
         <thead>
           <tr className="bg-gray-100">
@@ -55,23 +56,15 @@ export default function AllAppointmentsPage() {
           </tr>
         </thead>
         <tbody>
-          {items.length ? (
-            items.map((a) => (
-              <tr key={a.id}>
-                <td className="border p-2">
-                  {new Date(a.start).toLocaleString()}
-                </td>
-                <td className="border p-2">{a.provider}</td>
-                <td className="border p-2">{a.repeat ?? "-"}</td>
-              </tr>
-            ))
-          ) : (
-            <tr>
-              <td className="border p-2" colSpan={3}>
-                No appointments found in the next 90 days.
+          {appointments.map((a) => (
+            <tr key={a.id}>
+              <td className="border p-2">
+                {new Date(a.start).toLocaleString()}
               </td>
+              <td className="border p-2">{a.provider}</td>
+              <td className="border p-2">{a.repeat ?? "-"}</td>
             </tr>
-          )}
+          ))}
         </tbody>
       </table>
     </main>

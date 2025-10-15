@@ -39,18 +39,24 @@ export default function PortalPage() {
       try {
         const res = await fetch("/api/patient/me", { cache: "no-store" });
         if (res.status === 401) {
-          // not logged in → go to login
           router.push("/login");
           return;
         }
         if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j?.error || "Failed to load portal");
+          const j: unknown = await res.json().catch(() => ({}));
+          const msg =
+            typeof j === "object" && j !== null && "error" in j
+              ? String(
+                  (j as { error?: unknown }).error ?? "Failed to load portal"
+                )
+              : "Failed to load portal";
+          throw new Error(msg);
         }
         const data: Me = await res.json();
         setMe(data);
-      } catch (e: any) {
-        setErr(e?.message ?? "Unexpected error");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : "Unexpected error";
+        setErr(message);
       } finally {
         setLoading(false);
       }
@@ -102,6 +108,7 @@ export default function PortalPage() {
         </div>
       </header>
 
+      {/* Appointments (7 days) */}
       <section>
         <h2 className="text-xl font-semibold mb-2">
           Next 7 days — Appointments
@@ -136,6 +143,7 @@ export default function PortalPage() {
         </table>
       </section>
 
+      {/* Refills (7 days) */}
       <section>
         <h2 className="text-xl font-semibold mb-2">
           Next 7 days — Medication refills
@@ -171,11 +179,6 @@ export default function PortalPage() {
           </tbody>
         </table>
       </section>
-
-      <div className="text-sm">
-        Need to see everything? You’ll be able to view your full schedules in a
-        follow-up step.
-      </div>
     </main>
   );
 }
