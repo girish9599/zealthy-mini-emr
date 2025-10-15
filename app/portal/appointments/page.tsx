@@ -1,52 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useState } from "react";
 
 type Appointment = {
   id: number;
   provider: string;
-  start: string;
+  start: string; // ISO datetime from API
   repeat: string | null;
 };
 
-export default function PortalAppointmentsPage() {
-  const router = useRouter();
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
+export default function AppointmentsPage() {
+  const [items, setItems] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState("");
 
-  useEffect(() => {
-    (async () => {
-      setErr("");
-      try {
-        const res = await fetch("/api/patient/appointments", {
-          cache: "no-store",
-        });
-        if (res.status === 401) {
-          router.push("/login");
-          return;
-        }
-        if (!res.ok) throw new Error("Failed to load appointments");
-        const data: Appointment[] = await res.json();
-        setAppointments(data);
-      } catch (err: unknown) {
-        const message = err instanceof Error ? err.message : "Unexpected error";
-        setErr(message);
-      } finally {
-        setLoading(false);
+  const load = useCallback(async () => {
+    setErr("");
+    try {
+      const res = await fetch("/api/patient/appointments", {
+        cache: "no-store",
+      });
+      if (res.status === 401) {
+        // if you want, redirect to /login; for now show message
+        throw new Error("Not authenticated");
       }
-    })();
-  }, [router]);
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error ?? "Failed to load appointments");
+      }
+      const data: Appointment[] = await res.json();
+      setItems(data);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Unexpected error";
+      setErr(msg);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  if (loading) return <p className="p-4">Loading…</p>;
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  if (loading) return <p className="p-4">Loading appointments…</p>;
   if (err) return <p className="p-4 text-red-600">{err}</p>;
 
   return (
-    <main className="p-6">
-      <h1 className="text-2xl font-bold mb-4">
-        All appointments (next 3 months)
-      </h1>
+    <main className="p-6 space-y-4">
+      <h1 className="text-2xl font-bold">All appointments (next 3 months)</h1>
+
       <table className="border-collapse border w-full">
         <thead>
           <tr className="bg-gray-100">
@@ -56,15 +58,23 @@ export default function PortalAppointmentsPage() {
           </tr>
         </thead>
         <tbody>
-          {appointments.map((a) => (
-            <tr key={a.id}>
-              <td className="border p-2">
-                {new Date(a.start).toLocaleString()}
+          {items.length ? (
+            items.map((a) => (
+              <tr key={a.id}>
+                <td className="border p-2">
+                  {new Date(a.start).toLocaleString()}
+                </td>
+                <td className="border p-2">{a.provider}</td>
+                <td className="border p-2">{a.repeat ?? "-"}</td>
+              </tr>
+            ))
+          ) : (
+            <tr>
+              <td className="border p-2" colSpan={3}>
+                No appointments found.
               </td>
-              <td className="border p-2">{a.provider}</td>
-              <td className="border p-2">{a.repeat ?? "-"}</td>
             </tr>
-          ))}
+          )}
         </tbody>
       </table>
     </main>
