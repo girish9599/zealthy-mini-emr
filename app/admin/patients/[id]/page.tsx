@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 type Appointment = {
@@ -9,6 +9,7 @@ type Appointment = {
   start: string;
   repeat: string;
 };
+
 type Prescription = {
   id: number;
   medication: string;
@@ -17,6 +18,7 @@ type Prescription = {
   refillOn: string;
   refillSchedule?: string;
 };
+
 type UserDetail = {
   id: number;
   name: string;
@@ -31,22 +33,23 @@ export default function PatientDetailPage() {
   const [user, setUser] = useState<UserDetail | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function load() {
+  const load = useCallback(async () => {
     try {
-      const res = await fetch(`/api/admin/users/${id}`);
+      const res = await fetch(`/api/admin/users/${id}`, { cache: "no-store" });
       if (!res.ok) throw new Error("load failed");
-      const data = await res.json();
+      const data: UserDetail = await res.json();
       setUser(data);
-    } catch (e) {
+    } catch (err) {
+      console.error(err);
       setUser(null);
     } finally {
       setLoading(false);
     }
-  }
+  }, [id]);
 
   useEffect(() => {
-    load();
-  }, [id]);
+    void load();
+  }, [load]);
 
   if (loading) return <p className="p-4">Loading…</p>;
   if (!user) return <p className="p-4">Patient not found.</p>;
